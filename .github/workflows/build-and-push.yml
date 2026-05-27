@@ -44,6 +44,22 @@ jobs:
     timeout-minutes: 360
 
     steps:
+      - name: Free disk space (drop preinstalled tooling we don't need)
+        # ubuntu-latest ships with ~14 GB free; this frees another 30+ GB by
+        # removing Android SDK, .NET, Haskell, CodeQL etc. Required because our
+        # multi-stage build (colmap + glomap + spheresfm + python-builder
+        # running in parallel) blows past 14 GB during the pip install layer
+        # for torch + CUDA extensions.
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: false
+          docker-images: false
+
       - name: Checkout
         uses: actions/checkout@v4
 
