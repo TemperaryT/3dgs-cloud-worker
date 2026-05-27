@@ -7,7 +7,7 @@
   "min_reliability": 0.95,
   "min_cuda": 12.0,
   "disk": 60,
-  "image": "ghcr.io/temperaryt/3dgs-cloud-worker:v0.1.0",
+  "image": "ghcr.io/temperaryt/3dgs-cloud-worker@sha256:331a7a30e835bd41fb14840da1e0367fe879a561258cc0bbb911a60c7b9af506",
   "offer_type": "ondemand",
   "search_limit": 50,
   "cpu_blocklist": ["Pentium", "Celeron", "Athlon 3000G", "G5420", "G4400", "G3220"],
