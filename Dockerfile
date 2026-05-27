@@ -165,16 +165,15 @@ RUN python3.10 -m pip install \
 COPY requirements.txt /tmp/requirements.txt
 RUN python3.10 -m pip install --no-build-isolation -r /tmp/requirements.txt
 
-# Bake gsplat's simple_trainer.py from the v1.5.3 tag — no runtime fetch.
-RUN mkdir -p /opt/gsplat && \
-    curl -fsSL "https://raw.githubusercontent.com/nerfstudio-project/gsplat/${GSPLAT_TAG}/examples/simple_trainer.py" \
-        -o /opt/gsplat/simple_trainer.py && \
-    curl -fsSL "https://raw.githubusercontent.com/nerfstudio-project/gsplat/${GSPLAT_TAG}/examples/datasets/colmap.py" \
-        -o /opt/gsplat/colmap.py && \
-    curl -fsSL "https://raw.githubusercontent.com/nerfstudio-project/gsplat/${GSPLAT_TAG}/examples/datasets/normalize.py" \
-        -o /opt/gsplat/normalize.py && \
-    curl -fsSL "https://raw.githubusercontent.com/nerfstudio-project/gsplat/${GSPLAT_TAG}/examples/datasets/__init__.py" \
-        -o /opt/gsplat/datasets__init__.py
+# Bake gsplat's examples/ tree from the v1.5.3 tag — no runtime fetch.
+# Clone the whole repo shallowly, copy examples/, drop the rest. simple_trainer.py
+# imports from `datasets.colmap`, `datasets.traj`, `utils`, `lib_bilagrid` —
+# need the full tree, not just the entry point.
+RUN git clone --depth 1 --branch "${GSPLAT_TAG}" \
+        https://github.com/nerfstudio-project/gsplat /tmp/gsplat-src \
+    && mkdir -p /opt/gsplat \
+    && cp -r /tmp/gsplat-src/examples/. /opt/gsplat/ \
+    && rm -rf /tmp/gsplat-src
 
 # Bake Kotohibi (Metashape 360 → COLMAP cubemap converter) at a pinned ref
 # for the equirectangular pipeline. main branch tracked at 2026-05-27.

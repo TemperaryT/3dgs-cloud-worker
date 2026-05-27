@@ -78,7 +78,9 @@ mkdir -p "$GSP_OUTPUT_PATH"
 write_status "TRAINING" "strategy=$GSP_STRATEGY iter=$GSP_ITER frames=$frame_count max_cap=$GSP_MAX_CAP"
 
 # ── Build gsplat command ────────────────────────────────────────────────────
-CMD=(python /opt/gsplat/simple_trainer.py
+# simple_trainer.py uses relative imports (`from datasets.colmap`, `from utils`)
+# that require cwd=/opt/gsplat. Result paths are absolute via --result_dir.
+CMD=(python simple_trainer.py
     "$GSP_STRATEGY"
     --data_dir "$GSP_DATA_PATH"
     --result_dir "$GSP_OUTPUT_PATH"
@@ -98,7 +100,7 @@ if [[ -n "$GSP_EXTRA_FLAGS" ]]; then
 fi
 
 TRAIN_START_TS=$(date -u +%s)
-"${CMD[@]}" >> "$LOG_FILE" 2>&1
+( cd /opt/gsplat && "${CMD[@]}" ) >> "$LOG_FILE" 2>&1
 TRAIN_END_TS=$(date -u +%s)
 TRAIN_WALLCLOCK_S=$((TRAIN_END_TS - TRAIN_START_TS))
 
