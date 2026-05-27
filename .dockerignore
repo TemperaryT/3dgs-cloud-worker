@@ -1,0 +1,12 @@
+.git
+.gitignore
+.github
+README.md
+LICENSE
+*.md
+docs/
+test/
+tests/
+node_modules/
+*.pyc
+__pycache__/

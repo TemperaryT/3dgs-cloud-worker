@@ -1,0 +1,20 @@
+# local build artifacts
+*.log
+*.tmp
+build/
+dist/
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

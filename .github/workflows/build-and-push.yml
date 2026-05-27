@@ -1,0 +1,98 @@
+name: build-and-push
+
+# Builds the 3DGS Cloud Worker container and publishes to GHCR.
+#
+# Triggered on:
+#   - workflow_dispatch (manual via `gh workflow run` or web UI)
+#   - push of a tag matching v* (e.g. v0.1.0)
+#
+# Published tags:
+#   - The triggering ref name (immutable, e.g. v0.1.0)
+#   - latest (mutable convenience tag)
+#
+# After the first successful run, make the package public ONCE via:
+#   gh api -X PATCH /user/packages/container/3dgs-cloud-worker/visibility \
+#       -f visibility=public
+#
+# Notes:
+#   - GHA runners are 4 vCPU / 16 GB RAM, so the Dockerfile uses MAKE_JOBS=2
+#     to keep CUDA C++ compilation within memory budget.
+#   - First build ~90-120 min (cold). Cached re-runs ~20-30 min via type=gha.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag (published to GHCR)'
+        required: false
+        default: 'v0.1.0'
+      gsplat_tag:
+        description: 'gsplat upstream tag baked into the image (simple_trainer.py source)'
+        required: false
+        default: 'v1.5.3'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "gsplat=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+            echo "gsplat=${{ github.event.inputs.gsplat_tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve image owner (lowercase — required by Docker registries)
+        id: owner
+        run: |
+          echo "value=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            GSPLAT_TAG=${{ steps.tag.outputs.gsplat }}
+            MAKE_JOBS=2
+          tags: |
+            ghcr.io/${{ steps.owner.outputs.value }}/3dgs-cloud-worker:${{ steps.tag.outputs.value }}
+            ghcr.io/${{ steps.owner.outputs.value }}/3dgs-cloud-worker:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        run: |
+          echo "### 3DGS Cloud Worker image published" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`ghcr.io/${{ steps.owner.outputs.value }}/3dgs-cloud-worker:${{ steps.tag.outputs.value }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`ghcr.io/${{ steps.owner.outputs.value }}/3dgs-cloud-worker:latest\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**gsplat baked from upstream tag:** \`${{ steps.tag.outputs.gsplat }}\`" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,49 @@
+# 3DGS Cloud Worker — pinned pip deps
+#
+# All resolved in a single `pip install -r` pass so numpy<2 propagates to
+# transitive resolutions (opencv-python-headless, scipy, scikit-learn — these
+# otherwise pull numpy 2.x and break Torch 2.1.2 ABI).
+#
+# Torch itself is installed in the Dockerfile from the +cu121 index BEFORE
+# this file is consumed (since pip needs to know the wheel index for cuda
+# wheels; that index is not declarable in requirements.txt without --index-url).
+
+# ── Core 3DGS trainer ────────────────────────────────────────────────────────
+gsplat==1.5.3
+
+# ── gsplat examples/simple_trainer.py runtime deps (git URLs pinned to the
+#     commits the spec validated against — DO NOT bump without re-validating
+#     simple_trainer.py imports) ────────────────────────────────────────────
+git+https://github.com/rmbrualla/pycolmap@cc7ea4b7301720ac29287dbe450952511b32125e
+git+https://github.com/nerfstudio-project/nerfview@4538024fe0d15fd1a0e4d760f3695fc44ca72787
+git+https://github.com/rahul-goel/fused-ssim@328dc9836f513d00c4b5bc38fe30478b4435cbb5
+git+https://github.com/harry7557558/fused-bilagrid@90f9788e57d3545e3a033c1038bb9986549632fe
+
+# ── Trainer auxiliary deps ───────────────────────────────────────────────────
+viser
+tyro>=0.8.8
+imageio[ffmpeg]
+lpips
+opencv-python-headless
+scipy
+scikit-learn
+torchmetrics[image]
+tensorboard
+tensorly
+splines
+matplotlib
+Pillow
+jaxtyping
+rich
+tqdm
+PyYAML
+
+# ── Kotohibi 360→COLMAP cubemap converter deps ───────────────────────────────
+open3d
+
+# ── B2 / S3 transfer ─────────────────────────────────────────────────────────
+awscli
+boto3
+
+# ── numpy pin enforcement — MUST resolve in same install pass as the above ──
+numpy<2.0.0
