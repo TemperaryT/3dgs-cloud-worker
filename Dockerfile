@@ -143,7 +143,7 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
         python3.10 python3.10-dev python3-pip python3.10-venv \
         ninja-build build-essential \
     && rm -rf /var/lib/apt/lists/* \
-    && python3.10 -m pip install --upgrade pip wheel setuptools
+    && python3.10 -m pip install --upgrade pip wheel setuptools ninja
 
 # CUDA stub for gsplat / fused-* extension link step.
 RUN ln -sf /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
@@ -156,10 +156,14 @@ RUN python3.10 -m pip install \
         torchaudio==2.1.2+cu121 \
         --index-url https://download.pytorch.org/whl/cu121
 
-# Install everything else in a single pass so numpy<2 propagates to all
-# resolved dependencies (opencv-python-headless / scipy / scikit-learn).
+# Install everything else with --no-build-isolation so the PEP 517 build envs
+# for fused-ssim / fused-bilagrid can see the parent env's torch. These setup.py
+# files `import torch` at module-load (to discover CUDA paths + arch list), and
+# pip's default isolated build env doesn't include torch. With this flag, build
+# uses the same site-packages we just populated. numpy<2 enforcement in the
+# requirements.txt resolver pass still applies.
 COPY requirements.txt /tmp/requirements.txt
-RUN python3.10 -m pip install -r /tmp/requirements.txt
+RUN python3.10 -m pip install --no-build-isolation -r /tmp/requirements.txt
 
 # Bake gsplat's simple_trainer.py from the v1.5.3 tag — no runtime fetch.
 RUN mkdir -p /opt/gsplat && \
