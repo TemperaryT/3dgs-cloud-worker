@@ -27,8 +27,9 @@ FROM nvidia/cuda:12.1.1-devel-ubuntu22.04 AS colmap-builder
 ARG MAKE_JOBS=2
 
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
-        git cmake ninja-build pkg-config ca-certificates \
+        git ninja-build pkg-config ca-certificates \
         gcc g++ \
+        python3 python3-pip \
         libboost-all-dev \
         libeigen3-dev \
         libflann-dev \
@@ -41,7 +42,8 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
         libcgal-dev \
         libglew-dev \
         libgl-dev libglu1-mesa-dev libglx-dev libegl-dev mesa-common-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 install --no-cache-dir -q "cmake>=3.30,<4"
 
 # CUDA stub link so colmap's CUDA bits resolve at build time. Driver-provided
 # libcuda.so.1 takes over at runtime via NVIDIA_VISIBLE_DEVICES.
