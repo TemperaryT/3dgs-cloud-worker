@@ -1,0 +1,16 @@
+{
+  "_comment": "Vast.ai search profile for gsplat training. Replaces the old bare-PyTorch image after 3dgs-cloud-worker v0.1.0 lands. Update SHA via `docker buildx imagetools inspect ghcr.io/temperaryt/3dgs-cloud-worker:v0.1.0` and pin to the @sha256:... digest for reproducibility (same pattern as lichtfeld.json).",
+  "max_dph": 1.10,
+  "min_gpu_vram": 24000,
+  "min_gpus": 1,
+  "min_gpu_frac": 1.0,
+  "min_reliability": 0.95,
+  "min_cuda": 12.0,
+  "disk": 60,
+  "image": "ghcr.io/temperaryt/3dgs-cloud-worker:v0.1.0",
+  "offer_type": "ondemand",
+  "search_limit": 50,
+  "cpu_blocklist": ["Pentium", "Celeron", "Athlon 3000G", "G5420", "G4400", "G3220"],
+  "min_compute_cap": 750,
+  "min_inet_down": 300
+}
