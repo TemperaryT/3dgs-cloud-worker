@@ -80,13 +80,24 @@ write_status "TRAINING" "strategy=$GSP_STRATEGY iter=$GSP_ITER frames=$frame_cou
 # ── Build gsplat command ────────────────────────────────────────────────────
 # simple_trainer.py uses relative imports (`from datasets.colmap`, `from utils`)
 # that require cwd=/opt/gsplat. Result paths are absolute via --result_dir.
+#
+# --data_factor 1: simple_trainer.py defaults to 4, which makes the COLMAP
+#   parser look for a downscaled `images_4/` dir that our bundles don't have
+#   (ValueError: Image folder images_4 does not exist). Our bundles ship full-res
+#   `images/` only. Override via GSP_DATA_FACTOR if a bundle is pre-downscaled.
+# --save_ply: defaults to False; without it gsplat writes only .pt checkpoints
+#   and the finisher fails "no PLY artifact found". With it, the default
+#   ply_steps fire at max_steps and the PLY lands in result_dir/ply/.
+GSP_DATA_FACTOR="${GSP_DATA_FACTOR:-1}"
 CMD=(python simple_trainer.py
     "$GSP_STRATEGY"
     --data_dir "$GSP_DATA_PATH"
     --result_dir "$GSP_OUTPUT_PATH"
+    --data_factor "$GSP_DATA_FACTOR"
     --max_steps "$GSP_ITER"
     --sh_degree "$GSP_SH_DEGREE"
     --test_every "$GSP_TEST_EVERY"
+    --save_ply
     --disable_viewer)
 
 [[ -n "$GSP_MAX_CAP" ]] && CMD+=(--strategy.cap-max "$GSP_MAX_CAP")

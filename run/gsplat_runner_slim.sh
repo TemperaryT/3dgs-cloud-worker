@@ -21,6 +21,11 @@ set -euo pipefail
 SSH_HOST="${1:?usage: $0 SSH_HOST SSH_PORT}"
 SSH_PORT="${2:-22}"
 
+# Vast.ai ssh_direct instances log in as root. If the caller passed a bare
+# host (no user@), prepend root@ so `ssh $SSH_HOST` doesn't fall back to the
+# local username and fail with Permission denied (publickey).
+[[ "$SSH_HOST" == *@* ]] || SSH_HOST="root@${SSH_HOST}"
+
 for v in BUNDLE_S3 LFS_EXPERIMENT_ID LFS_RUN_ID LFS_OUTPUT_B2_PREFIX; do
     [[ -n "${!v:-}" ]] || { echo "ERROR: $v not set" >&2; exit 2; }
 done

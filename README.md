@@ -38,6 +38,8 @@ everything into a GHCR image eliminates the entire class of failure.
 
 CUDA architectures compiled: `75;80;86;89;90` (RTX 2080/T4 → A100 → 3090/A4000/A6000 → 4090/4080 → H100). Vast.ai rents nothing below 75 anymore.
 
+**GPU constraint — Ampere/Ada/Hopper only.** Blackwell cards (RTX PRO 4000/5000/6000, compute_cap 12.0 / SM_120) are NOT supported: SM_120 requires CUDA ≥12.8, but this image is built on CUDA 12.1.1 with Torch 2.1.2+cu121 (no sm_120 wheel exists). When searching Vast, exclude Blackwell — its kernels won't load. Blackwell support requires a CUDA 12.8 + Torch ≥2.6 base migration (tracked for v0.2.0).
+
 ## Entrypoint contract (`/opt/3dgs/scripts/run_train.sh`)
 
 Env vars (LFS_* aliases retained for orchestrator compatibility with

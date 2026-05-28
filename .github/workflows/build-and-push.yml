@@ -28,7 +28,7 @@ on:
       tag:
         description: 'Image tag (published to GHCR)'
         required: false
-        default: 'v0.1.0'
+        default: 'v0.1.1'
       gsplat_tag:
         description: 'gsplat upstream tag baked into the image (simple_trainer.py source)'
         required: false

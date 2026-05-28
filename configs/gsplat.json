@@ -1,5 +1,5 @@
 {
-  "_comment": "Vast.ai search profile for gsplat training. Replaces the old bare-PyTorch image after 3dgs-cloud-worker v0.1.0 lands. Update SHA via `docker buildx imagetools inspect ghcr.io/temperaryt/3dgs-cloud-worker:v0.1.0` and pin to the @sha256:... digest for reproducibility (same pattern as lichtfeld.json).",
+  "_comment": "Vast.ai search profile for gsplat training via 3dgs-cloud-worker. SHA-pinned (same pattern as lichtfeld.json). WARNING: image is CUDA 12.1 / Torch 2.1.2+cu121, arch list 75;80;86;89;90 — Ampere/Ada/Hopper only. Do NOT land Blackwell cards (RTX PRO 4000/5000/6000, compute_cap 1200/SM_120): their kernels will not load. min_compute_cap 750 alone does not exclude Blackwell, so the launcher must reject compute_cap >= 1000 until a CUDA 12.8 base (v0.2.0) ships.",
   "max_dph": 1.10,
   "min_gpu_vram": 24000,
   "min_gpus": 1,

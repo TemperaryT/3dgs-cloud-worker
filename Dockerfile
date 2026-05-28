@@ -249,6 +249,16 @@ print('torch:', torch.__version__, 'cuda_built:', torch.version.cuda);\
 print('gsplat:', gsplat.__version__);\
 print('all imports OK')"
 
+# Pre-bake LPIPS AlexNet weights (~233 MB) so training is offline-capable and
+# doesn't stall at first eval downloading them. simple_trainer.py instantiates
+# LearnedPerceptualImagePatchSimilarity(net_type='alex'). Fail-soft — if the
+# download flakes during build, training falls back to runtime download.
+RUN python3 -c "\
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as L;\
+L(net_type='alex');\
+print('LPIPS alex weights cached')" \
+    || echo "WARN: LPIPS prebake failed (will download at runtime)"
+
 # Project scripts.
 COPY scripts/ /opt/3dgs/scripts/
 COPY run/ /opt/3dgs/run/
