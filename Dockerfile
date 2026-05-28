@@ -156,9 +156,16 @@ RUN mkdir -p /opt/opensfm && \
         python3 -m venv /opt/opensfm/venv; \
         /opt/opensfm/venv/bin/pip install --no-cache-dir --upgrade pip wheel setuptools; \
         /opt/opensfm/venv/bin/pip install --no-cache-dir "numpy<2" ; \
-        /opt/opensfm/venv/bin/pip install --no-cache-dir -r /opt/opensfm/src/requirements.txt; \
+        # Modern OpenSfM is pyproject.toml-driven: `pip install -e .` runs the
+        # cmake C++ build AND wires the pybind extensions (pybundle, pygeometry,
+        # ...) into the importable package. v0.2.0 used `setup.py build` which
+        # compiled into cmake_build/ but never made them importable (pybundle
+        # ImportError). Matches OpenSfM's official Dockerfile.ubuntu24.
         cd /opt/opensfm/src && \
-            /opt/opensfm/venv/bin/python setup.py build; \
+            /opt/opensfm/venv/bin/pip install --no-cache-dir -e . ; \
+        # Verify the extension actually imports — turn a silent miss into a
+        # build failure so the fail-soft marker fires instead of shipping broken.
+        /opt/opensfm/venv/bin/python -c "from opensfm import pybundle, pygeometry; print('opensfm extensions import OK')"; \
         rm -rf /var/lib/apt/lists/*; \
         echo "+++ OpenSfM build OK"; \
     ) || ( \
