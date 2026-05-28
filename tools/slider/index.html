@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3DGS Wipe Slider</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="header">
+      <span id="label-a" class="label label-a">A</span>
+      <span id="title">3DGS Wipe Comparison</span>
+      <span id="label-b" class="label label-b">B</span>
+    </header>
+
+    <div id="canvas-wrap">
+      <!-- Layer A (bottom) — always full width -->
+      <img id="img-a" class="layer" alt="Splat A" />
+      <!-- Layer B (top) — clipped to right of divider -->
+      <div id="clip-b">
+        <img id="img-b" class="layer" alt="Splat B" />
+      </div>
+      <!-- Divider -->
+      <div id="divider">
+        <div id="handle">&#8942;</div>
+      </div>
+      <!-- Inline labels overlaid on the image -->
+      <span class="overlay-label left" id="overlay-a"></span>
+      <span class="overlay-label right" id="overlay-b"></span>
+    </div>
+
+    <div id="controls">
+      <label for="frame-scrubber">Frame</label>
+      <input id="frame-scrubber" type="range" min="0" value="0" step="1" />
+      <span id="frame-count">0 / 0</span>
+    </div>
+
+    <div id="status"></div>
+  </div>
+
+  <script src="slider.js"></script>
+</body>
+</html>

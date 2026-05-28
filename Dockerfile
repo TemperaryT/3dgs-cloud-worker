@@ -103,6 +103,13 @@ RUN mkdir -p /opt/spheresfm && \
         echo "+++ SphereSfM build attempt"; \
         git clone --recurse-submodules --depth 1 \
             https://github.com/json87/SphereSfM /src/spheresfm; \
+        # v0.1.x failed here: src/feature/sift.cc uses legacy GL constants
+        # (GL_LUMINANCE, GL_UNSIGNED_BYTE) that modern Mesa headers don't pull
+        # into that TU, and -DGUI_ENABLED=OFF doesn't gate them. Inject guarded
+        # defines at the top of the file so the constants resolve without
+        # depending on GL header include order.
+        sed -i '1i #ifndef GL_LUMINANCE\n#define GL_LUMINANCE 0x1909\n#endif\n#ifndef GL_UNSIGNED_BYTE\n#define GL_UNSIGNED_BYTE 0x1401\n#endif' \
+            /src/spheresfm/src/feature/sift.cc; \
         cmake -B /src/spheresfm/build -S /src/spheresfm \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX=/opt/spheresfm \
@@ -120,6 +127,45 @@ RUN mkdir -p /opt/spheresfm && \
         rm -rf /src/spheresfm /opt/spheresfm; \
         mkdir -p /opt/spheresfm; \
         echo "build failed during $(date -u +%Y-%m-%dT%H:%M:%SZ)" > /opt/spheresfm/BUILD_FAILED; \
+        true \
+    )
+
+
+# ─── Stage 1d: OpenSfM builder (FAIL-SOFT) ───────────────────────────────────
+# Open-source spherical SfM — primary candidate to replace Metashape. Native
+# `opensfm export_colmap` outputs cameras.txt/images.txt/points3D.txt, exactly
+# what Kotohibi + gsplat consume. Built into an isolated venv at
+# /opt/opensfm/venv so its Python deps (opencv/numpy/scipy) can't collide with
+# the training env's pinned numpy<2 / torch stack. Fail-soft: if it won't
+# build, the image still ships (SphereSfM or Metashape carry the SfM step).
+FROM nvidia/cuda:12.1.1-devel-ubuntu22.04 AS opensfm-builder
+
+ARG MAKE_JOBS=2
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN mkdir -p /opt/opensfm && \
+    (   set -e; \
+        echo "+++ OpenSfM build attempt"; \
+        apt-get update -qq && apt-get install -y -qq --no-install-recommends \
+            git cmake build-essential ca-certificates \
+            libeigen3-dev libopencv-dev libceres-dev libsuitesparse-dev \
+            libgoogle-glog-dev libgflags-dev \
+            python3 python3-dev python3-pip python3-venv; \
+        git clone --recursive --depth 1 \
+            https://github.com/mapillary/OpenSfM /opt/opensfm/src; \
+        python3 -m venv /opt/opensfm/venv; \
+        /opt/opensfm/venv/bin/pip install --no-cache-dir --upgrade pip wheel setuptools; \
+        /opt/opensfm/venv/bin/pip install --no-cache-dir "numpy<2" ; \
+        /opt/opensfm/venv/bin/pip install --no-cache-dir -r /opt/opensfm/src/requirements.txt; \
+        cd /opt/opensfm/src && \
+            /opt/opensfm/venv/bin/python setup.py build; \
+        rm -rf /var/lib/apt/lists/*; \
+        echo "+++ OpenSfM build OK"; \
+    ) || ( \
+        echo "WARN: OpenSfM build failed — image will ship without it"; \
+        rm -rf /opt/opensfm; \
+        mkdir -p /opt/opensfm; \
+        echo "build failed during $(date -u +%Y-%m-%dT%H:%M:%SZ)" > /opt/opensfm/BUILD_FAILED; \
         true \
     )
 
@@ -203,6 +249,7 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
         libfreeimage3 libmetis5 libgoogle-glog0v5 libgflags2.2 \
         libsqlite3-0 libceres2 libcurl4 libcgal-dev libglew2.2 \
         libgl1 libglu1-mesa \
+        libopencv-dev libsuitesparse-dev \
     && ln -sf /usr/bin/python3.10 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/* \
     && python3.10 -m pip install --upgrade pip wheel setuptools
@@ -210,12 +257,20 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
 # Pull binaries + libs from each builder.
 COPY --from=glomap-builder /opt/colmap /opt/colmap
 COPY --from=spheresfm-builder /opt/spheresfm /opt/spheresfm
+COPY --from=opensfm-builder /opt/opensfm /opt/opensfm
 
 # Pull Python install (site-packages compiled with target arch list).
 COPY --from=python-builder /usr/local/lib/python3.10/dist-packages /usr/local/lib/python3.10/dist-packages
 COPY --from=python-builder /usr/local/bin /usr/local/bin
 COPY --from=python-builder /opt/gsplat /opt/gsplat
 COPY --from=python-builder /opt/kotohibi /opt/kotohibi
+
+# OpenSfM CLI wrapper — runs from its source tree with its isolated venv on
+# PATH (so bin/opensfm picks up the venv python3, not the training python).
+RUN if [ ! -f /opt/opensfm/BUILD_FAILED ]; then \
+        printf '#!/bin/bash\nexport PATH="/opt/opensfm/venv/bin:$PATH"\ncd /opt/opensfm/src && exec ./bin/opensfm "$@"\n' \
+            > /usr/local/bin/opensfm && chmod +x /usr/local/bin/opensfm; \
+    fi
 
 # PATH + ldconfig — register COLMAP and SphereSfM shared libs so the loader
 # finds them at runtime regardless of CWD.
@@ -236,7 +291,11 @@ RUN echo "/opt/colmap/lib" > /etc/ld.so.conf.d/3dgs-pipeline.conf \
          && echo "  spheresfm: NOT BUILT (will continue without)" \
          || (ldd /opt/spheresfm/bin/colmap 2>/dev/null | grep "not found" \
              && echo "WARN: spheresfm unresolved libs" \
-             || echo "  spheresfm: ok"); }
+             || echo "  spheresfm: ok"); } \
+    && echo "verify opensfm (optional):" \
+    && { [ -f /opt/opensfm/BUILD_FAILED ] \
+         && echo "  opensfm: NOT BUILT (will continue without)" \
+         || echo "  opensfm: present at /opt/opensfm"; }
 
 # Smoke test imports — fail the build NOW if anything is missing.
 RUN python3 -c "\

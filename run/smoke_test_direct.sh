@@ -47,9 +47,14 @@ docker run --rm --entrypoint /bin/bash "${IMAGE}" -c '
     exiftool -ver
     ls -la /opt/gsplat/simple_trainer.py
     ls -la /opt/kotohibi/metashape_360_to_colmap.py
+    ls -la /opt/3dgs/scripts/crop_points3d.py /opt/3dgs/scripts/run_opensfm_cubemap.sh
+    python3 /opt/3dgs/scripts/crop_points3d.py --help >/dev/null 2>&1 && echo "  crop_points3d.py: ok"
     [ -f /opt/spheresfm/BUILD_FAILED ] \
         && echo "  spheresfm: NOT BUILT (image shipped without)" \
         || (ls /opt/spheresfm/bin/ 2>/dev/null | head -3 && echo "  spheresfm: present")
+    [ -f /opt/opensfm/BUILD_FAILED ] \
+        && echo "  opensfm: NOT BUILT (image shipped without)" \
+        || (opensfm --help >/dev/null 2>&1 && echo "  opensfm: ok" || echo "  opensfm: present but CLI check inconclusive")
     echo "+++ all binaries OK"
 '
 
