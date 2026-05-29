@@ -163,9 +163,22 @@ RUN mkdir -p /opt/opensfm && \
         # ImportError). Matches OpenSfM's official Dockerfile.ubuntu24.
         cd /opt/opensfm/src && \
             /opt/opensfm/venv/bin/pip install --no-cache-dir -e . ; \
-        # Verify the extension actually imports — turn a silent miss into a
-        # build failure so the fail-soft marker fires instead of shipping broken.
-        /opt/opensfm/venv/bin/python -c "from opensfm import pybundle, pygeometry; print('opensfm extensions import OK')"; \
+        # v0.2.2 fix: OpenSfM's native (OpenBLAS-linked) extensions and matplotlib
+        # have a threading-init-order conflict — if a native ext initialises before
+        # matplotlib, the process SIGABRTs (silently, no message). opensfm/__init__.py
+        # imports the native exts on line 1, so EVERY `import opensfm.*` (hence every
+        # subcommand) aborted at startup. Prepend a matplotlib-first guard so it always
+        # loads first. (matplotlib-first is necessary AND sufficient — proven on the
+        # shipped image with numpy 2.2.6 untouched; this is NOT a numpy/opencv issue.)
+        printf 'import matplotlib as _mpl\n_mpl.use("Agg")\nimport matplotlib.pyplot as _plt  # noqa: F401\n' \
+            | cat - /opt/opensfm/src/opensfm/__init__.py > /tmp/osf_init.py \
+            && mv /tmp/osf_init.py /opt/opensfm/src/opensfm/__init__.py; \
+        # Verify by importing the FULL eager command chain (opensfm.commands ->
+        # compute_statistics -> stats -> matplotlib+native). The old check
+        # `import pybundle, pygeometry` was too weak: it PASSED on v0.2.1 while
+        # every actual subcommand aborted. This turns that silent miss into a
+        # hard build failure (-> fail-soft marker) instead of shipping broken.
+        /opt/opensfm/venv/bin/python -c "import opensfm.commands; from opensfm import pybundle, pygeometry; print('opensfm commands+extensions import OK')"; \
         rm -rf /var/lib/apt/lists/*; \
         echo "+++ OpenSfM build OK"; \
     ) || ( \

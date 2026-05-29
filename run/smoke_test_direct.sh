@@ -54,7 +54,9 @@ docker run --rm --entrypoint /bin/bash "${IMAGE}" -c '
         || (ls /opt/spheresfm/bin/ 2>/dev/null | head -3 && echo "  spheresfm: present")
     [ -f /opt/opensfm/BUILD_FAILED ] \
         && echo "  opensfm: NOT BUILT (image shipped without)" \
-        || (opensfm --help >/dev/null 2>&1 && echo "  opensfm: ok" || echo "  opensfm: present but CLI check inconclusive")
+        || ( /opt/opensfm/venv/bin/python -c "import opensfm.commands; from opensfm import pybundle, pygeometry" >/dev/null 2>&1 \
+             && echo "  opensfm: ok (commands+extensions import — exercises the chain that SIGABRTed pre-v0.2.2)" \
+             || echo "  opensfm: PRESENT BUT BROKEN (import opensfm.commands failed — regression of the v0.2.2 matplotlib-first fix)" )
     echo "+++ all binaries OK"
 '
 

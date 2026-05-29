@@ -36,10 +36,26 @@ cp "$OSF_ERP_DIR"/* "$OSF_WORK_DIR/images/" 2>/dev/null || true
 
 # Force the spherical camera model for all frames (GoPro ERP). OpenSfM reads
 # camera_models_overrides.json or config; the override file is the robust route.
-cat > "$OSF_WORK_DIR/camera_models_overrides.json" <<'JSON'
+# NOTE (v0.2.2): the override REPLACES the camera, so it MUST carry width/height —
+# otherwise OpenSfM's average_image_size() sees w*h=0 and detect_features dies with
+# `ZeroDivisionError: float division by zero`. Read real dims from the first frame.
+read OSF_W OSF_H < <(/opt/opensfm/venv/bin/python - "$OSF_WORK_DIR/images" <<'PYEOF'
+import sys, glob, os
+from PIL import Image
+imgs = sorted(glob.glob(os.path.join(sys.argv[1], "*")))
+if not imgs:
+    print("0 0"); raise SystemExit
+im = Image.open(imgs[0]); print(im.width, im.height)
+PYEOF
+)
+[[ "${OSF_W:-0}" -gt 0 && "${OSF_H:-0}" -gt 0 ]] || { echo "FAIL: could not read ERP image dimensions" >&2; exit 1; }
+echo "OpenSfM spherical override: ${OSF_W}x${OSF_H}"
+cat > "$OSF_WORK_DIR/camera_models_overrides.json" <<JSON
 {
   "all": {
-    "projection_type": "spherical"
+    "projection_type": "spherical",
+    "width": ${OSF_W},
+    "height": ${OSF_H}
   }
 }
 JSON
